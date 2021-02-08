@@ -2,8 +2,8 @@
   "profiles": {
     "tye": {
       "commandName": "Project",
-      "commandLineArgs": "build --framework netcoreapp3.1",
-      "workingDirectory": "..\\..\\samples\\app-with-targetframeworks\\"
+      "commandLineArgs": "run /home/oem/Source/CraftTalk/opbot/src/opbot/tye.yaml --release -v debug",
+      "workingDirectory": "/home/oem/Source/CraftTalk/opbot/src/opbot/"
     }
   }
 }

@@ -74,6 +74,11 @@ namespace Microsoft.Tye
                     Description = "Watches for code changes for all dotnet projects.",
                     Required = false
                 },
+                new Option("--release")
+                {
+                  Description  = "Build or Run in Release mode",
+                  Required = false
+                },
                 StandardOptions.Framework,
                 StandardOptions.Tags,
                 StandardOptions.Verbosity,
@@ -93,7 +98,7 @@ namespace Microsoft.Tye
 
                 var filter = ApplicationFactoryFilter.GetApplicationFactoryFilter(args.Tags);
 
-                var application = await ApplicationFactory.CreateAsync(output, args.Path, args.Framework, filter);
+                var application = await ApplicationFactory.CreateAsync(output, args.Path, args.Framework, filter, releaseMode: args.Release);
                 if (application.Services.Count == 0)
                 {
                     throw new CommandException($"No services found in \"{application.Source.Name}\"");
@@ -104,6 +109,7 @@ namespace Microsoft.Tye
                     Dashboard = args.Dashboard,
                     Docker = args.Docker,
                     NoBuild = args.NoBuild,
+                    Release = args.Release,
                     Port = args.Port,
 
                     // parsed later by the diagnostics code
@@ -163,6 +169,8 @@ namespace Microsoft.Tye
             public string Metrics { get; set; } = default!;
 
             public bool NoBuild { get; set; }
+
+            public bool Release { get; set; }
 
             public FileInfo Path { get; set; } = default!;
 

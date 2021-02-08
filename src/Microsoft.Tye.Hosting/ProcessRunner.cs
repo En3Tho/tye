@@ -123,12 +123,12 @@ namespace Microsoft.Tye.Hosting
                 var sb = new StringBuilder();
                 sb.AppendLine(@"<Project DefaultTargets=""Build"">");
 
-                foreach (var group in projectGroups)
+                foreach (var (_, value) in projectGroups)
                 {
                     sb.AppendLine(@"    <ItemGroup>");
-                    foreach (var p in group.Value.Services)
+                    foreach (var p in value.Services)
                     {
-                        sb.AppendLine($"        <{group.Value.GroupName} Include=\"{p.Status.ProjectFilePath}\" />");
+                        sb.AppendLine($"        <{value.GroupName} Include=\"{p.Status.ProjectFilePath}\" />");
                     }
                     sb.AppendLine(@"    </ItemGroup>");
                 }
@@ -145,7 +145,7 @@ namespace Microsoft.Tye.Hosting
 
                 _logger.LogInformation("Building projects");
 
-                var buildResult = await ProcessUtil.RunAsync("dotnet", $"build \"{projectPath}\" /nologo", throwOnError: false, workingDirectory: application.ContextDirectory);
+                var buildResult = await ProcessUtil.RunAsync("dotnet", $"build \"{projectPath}\" {(_options.Release ? "-c Release" : "")} /nologo", throwOnError: false, workingDirectory: application.ContextDirectory);
 
                 if (buildResult.ExitCode != 0)
                 {

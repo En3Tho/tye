@@ -11,6 +11,7 @@ namespace Microsoft.Tye.Hosting
     {
         public bool DebugMode { get; set; }
         public bool BuildProjects { get; set; }
+        public bool Release { get; set; }
         public string[]? ServicesToDebug { get; set; }
         public bool DebugAllServices { get; set; }
         public bool Watch { get; set; }
@@ -21,6 +22,7 @@ namespace Microsoft.Tye.Hosting
             {
                 BuildProjects = !options.NoBuild,
                 DebugMode = options.Debug.Any(),
+                Release = options.Release,
                 ServicesToDebug = options.Debug.ToArray(),
                 DebugAllServices = options.Debug?.Contains("*", StringComparer.OrdinalIgnoreCase) ?? false,
                 Watch = options.Watch

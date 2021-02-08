@@ -17,7 +17,7 @@ namespace Microsoft.Tye
 {
     public static class ApplicationFactory
     {
-        public static async Task<ApplicationBuilder> CreateAsync(OutputContext output, FileInfo source, string? framework = null, ApplicationFactoryFilter? filter = null)
+        public static async Task<ApplicationBuilder> CreateAsync(OutputContext output, FileInfo source, string? framework = null, ApplicationFactoryFilter? filter = null, bool releaseMode = false)
         {
             if (source is null)
             {
@@ -86,7 +86,9 @@ namespace Microsoft.Tye
                 var msbuildEvaluationResult = await EvaluateProjectsAsync(
                     projects: projectServices,
                     configRoot: config.Source.DirectoryName!,
-                    output: output);
+                    output: output,
+                    releaseMode: releaseMode,
+                    targetFramework: framework);
                 var msbuildEvaluationOutput = msbuildEvaluationResult
                     .StandardOutput
                     .Split(Environment.NewLine);
@@ -123,7 +125,9 @@ namespace Microsoft.Tye
                     var multiTFMEvaluationResult = await EvaluateProjectsAsync(
                         projects: multiTFMProjects,
                         configRoot: config.Source.DirectoryName!,
-                        output: output);
+                        output: output,
+                        releaseMode: releaseMode,
+                        targetFramework: framework);
                     var multiTFMEvaluationOutput = multiTFMEvaluationResult
                         .StandardOutput
                         .Split(Environment.NewLine);
@@ -476,7 +480,7 @@ namespace Microsoft.Tye
             return root;
         }
 
-        private static async Task<ProcessResult> EvaluateProjectsAsync(IEnumerable<ConfigService> projects, string configRoot, OutputContext output)
+        private static async Task<ProcessResult> EvaluateProjectsAsync(IEnumerable<ConfigService> projects, string configRoot, OutputContext output, bool releaseMode = false, string targetFramework = "")
         {
             using var directory = TempDirectory.Create();
             var projectPath = Path.Combine(directory.DirectoryPath, Path.GetRandomFileName() + ".proj");
@@ -517,19 +521,28 @@ namespace Microsoft.Tye
             output.WriteDebugLine("Restoring and evaluating projects");
 
             var projectEvaluationTargets = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "ProjectEvaluation.targets");
+
+            var arguments =
+                $"build " +
+                $"\"{projectPath}\" " +
+                $"{(releaseMode ? "-c Release " : "")}" +
+                $"{(!string.IsNullOrEmpty(targetFramework) ? $"--framework {targetFramework} " : "")}" +
+                // CustomAfterMicrosoftCommonTargets is imported by non-crosstargeting (single TFM) projects
+                @$"/p:CustomAfterMicrosoftCommonTargets=""{projectEvaluationTargets}"" " +
+                // CustomAfterMicrosoftCommonCrossTargetingTargets is imported by crosstargeting (multi-TFM) projects
+                // This ensures projects properties are evaluated correctly. However, multi-TFM projects must specify
+                // a specific TFM to build/run/publish and will otherwise throw an exception.
+                @$"/p:CustomAfterMicrosoftCommonCrossTargetingTargets=""{projectEvaluationTargets}"" " +
+                //$"{(releaseMode ? "/p:Configuration=Release " : "")}" +
+                $"/nologo";
+
             var msbuildEvaluationResult = await ProcessUtil.RunAsync(
                 "dotnet",
-                $"build " +
-                    $"\"{projectPath}\" " +
-                    // CustomAfterMicrosoftCommonTargets is imported by non-crosstargeting (single TFM) projects
-                    @$"/p:CustomAfterMicrosoftCommonTargets=""{projectEvaluationTargets}"" " +
-                    // CustomAfterMicrosoftCommonCrossTargetingTargets is imported by crosstargeting (multi-TFM) projects
-                    // This ensures projects properties are evaluated correctly. However, multi-TFM projects must specify
-                    // a specific TFM to build/run/publish and will otherwise throw an exception.
-                    @$"/p:CustomAfterMicrosoftCommonCrossTargetingTargets=""{projectEvaluationTargets}"" " +
-                    $"/nologo",
+                arguments,
                 throwOnError: false,
                 workingDirectory: directory.DirectoryPath);
+
+
 
             // If the build fails, we're not really blocked from doing our work.
             // For now we just log the output to debug. There are errors that occur during
@@ -537,7 +550,7 @@ namespace Microsoft.Tye
             if (msbuildEvaluationResult.ExitCode != 0)
             {
                 output.WriteInfoLine($"Evaluating project failed with exit code {msbuildEvaluationResult.ExitCode}");
-                output.WriteDebugLine($"Ouptut: {msbuildEvaluationResult.StandardOutput}");
+                output.WriteDebugLine($"Output: {msbuildEvaluationResult.StandardOutput}");
                 output.WriteDebugLine($"Error: {msbuildEvaluationResult.StandardError}");
             }
 
